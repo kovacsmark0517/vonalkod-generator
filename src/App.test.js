@@ -33,22 +33,23 @@ test('switches from QR to barcode without opening the format menu', () => {
   fireEvent.click(screen.getByRole('button', { name: 'QR-kód' }));
   expect(screen.queryByRole('combobox', { name: 'Vonalkód típusa' })).not.toBeInTheDocument();
 
-  const barcodeMode = screen.getByRole('button', { name: 'Vonalkód: Code 128' });
+  const barcodeMode = screen.getByRole('button', { name: 'Vonalkód' });
   fireEvent.click(barcodeMode);
 
   expect(barcodeMode).toHaveAttribute('aria-pressed', 'true');
-  expect(barcodeMode).toHaveAttribute('aria-expanded', 'false');
   expect(screen.queryByRole('combobox', { name: 'Vonalkód típusa' })).not.toBeInTheDocument();
 
-  fireEvent.click(barcodeMode);
-  expect(barcodeMode).toHaveAttribute('aria-expanded', 'true');
+  const formatToggle = screen.getByRole('button', { name: 'Vonalkód formátuma: Code 128' });
+  expect(formatToggle).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(formatToggle);
+  expect(formatToggle).toHaveAttribute('aria-expanded', 'true');
   expect(screen.getByRole('combobox', { name: 'Vonalkód típusa' })).toBeInTheDocument();
 });
 
 test('validates and saves a format, then restores and deletes it', () => {
   const { unmount } = render(<App />);
   const input = screen.getByRole('textbox', { name: 'Kód értéke' });
-  const formatToggle = screen.getByRole('button', { name: 'Vonalkód: Code 128' });
+  const formatToggle = screen.getByRole('button', { name: 'Vonalkód formátuma: Code 128' });
 
   expect(formatToggle).toHaveAttribute('aria-expanded', 'false');
   expect(screen.queryByRole('combobox', { name: 'Vonalkód típusa' })).not.toBeInTheDocument();
@@ -57,10 +58,10 @@ test('validates and saves a format, then restores and deletes it', () => {
   const formatSelect = screen.getByRole('combobox', { name: 'Vonalkód típusa' });
 
   fireEvent.change(formatSelect, { target: { value: 'EAN13' } });
-  expect(screen.getByRole('button', { name: 'Vonalkód: EAN-13' })).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.getByRole('button', { name: 'Vonalkód formátuma: EAN-13' })).toHaveAttribute('aria-expanded', 'false');
   expect(screen.queryByRole('combobox', { name: 'Vonalkód típusa' })).not.toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole('button', { name: 'Vonalkód: EAN-13' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Vonalkód formátuma: EAN-13' }));
   const selectedFormat = screen.getByRole('combobox', { name: 'Vonalkód típusa' });
   expect(selectedFormat).toHaveValue('EAN13');
   fireEvent.change(input, { target: { value: 'not-a-number' } });
@@ -85,8 +86,8 @@ test('validates and saves a format, then restores and deletes it', () => {
   fireEvent.click(screen.getByRole('button', { name: 'EAN-13 400638133393' }));
 
   expect(screen.getByRole('textbox', { name: 'Kód értéke' })).toHaveValue('400638133393');
-  expect(screen.getByRole('button', { name: 'Vonalkód: EAN-13' })).toHaveAttribute('aria-expanded', 'false');
-  fireEvent.click(screen.getByRole('button', { name: 'Vonalkód: EAN-13' }));
+  expect(screen.getByRole('button', { name: 'Vonalkód formátuma: EAN-13' })).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(screen.getByRole('button', { name: 'Vonalkód formátuma: EAN-13' }));
   expect(screen.getByRole('combobox', { name: 'Vonalkód típusa' })).toHaveValue('EAN13');
   expect(screen.getByRole('img', { name: 'Vonalkód EAN13: 400638133393' })).toBeInTheDocument();
 
@@ -112,7 +113,7 @@ test('generates, saves, restores, and deletes QR codes separately', () => {
 
   fireEvent.click(screen.getByRole('button', { name: 'QR-kód' }));
   expect(screen.getByRole('button', { name: 'QR-kód' })).toHaveAttribute('aria-pressed', 'true');
-  expect(screen.getByRole('button', { name: 'Vonalkód: Code 128' })).toHaveAttribute('aria-pressed', 'false');
+  expect(screen.getByRole('button', { name: 'Vonalkód' })).toHaveAttribute('aria-pressed', 'false');
   fireEvent.change(screen.getByRole('textbox', { name: 'Kód értéke' }), { target: { value } });
 
   expect(screen.getByRole('img', { name: `QR-kód: ${value}` })).toBeInTheDocument();

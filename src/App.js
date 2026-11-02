@@ -220,54 +220,19 @@ function App() {
                 <h1 id="page-title">Vonalkód generátor</h1>
 
                 <div className="generator-mode-row">
-                    <div className="format-control">
                     <button
-                        className="format-toggle"
+                        className={generatorMode === 'barcode' ? 'generator-mode-toggle is-active' : 'generator-mode-toggle'}
                         type="button"
-                        aria-expanded={isFormatOpen}
                         aria-pressed={generatorMode === 'barcode'}
-                        aria-controls="format-panel"
-                        aria-label={`Vonalkód: ${selectedFormat.label}`}
                         onClick={() => {
-                            if (generatorMode !== 'barcode') {
-                                setGeneratorMode('barcode');
-                                    setIsFormatOpen(false);
-                            } else {
-                                setIsFormatOpen((isOpen) => !isOpen);
-                            }
+                            setGeneratorMode('barcode');
+                            setIsFormatOpen(false);
                         }}
                     >
-                        <span className="format-toggle-label">Vonalkód</span>
-                        <span className="format-toggle-value">{selectedFormat.label}</span>
+                        Vonalkód
                     </button>
-
-                    <div className="format-field" id="format-panel" hidden={!isFormatOpen}>
-                        <label className="input-label" htmlFor="barcode-format">Vonalkód típusa</label>
-                        <select
-                            className="format-select"
-                            id="barcode-format"
-                            value={format}
-                            onChange={(event) => {
-                                setFormat(event.target.value);
-                                setIsFormatOpen(false);
-                            }}
-                            aria-describedby="format-help"
-                        >
-                            {FORMAT_GROUPS.map((group) => (
-                                <optgroup label={group.label} key={group.label}>
-                                    {group.formats.map((option) => (
-                                        <option value={option.value} key={option.value}>{option.label}</option>
-                                    ))}
-                                </optgroup>
-                            ))}
-                        </select>
-                        <p className={validationError ? 'format-help format-error' : 'format-help'} id="format-help" role={validationError ? 'alert' : 'status'}>
-                            {validationError || selectedFormat.hint}
-                        </p>
-                    </div>
-                    </div>
                     <button
-                        className={generatorMode === 'qr' ? 'qr-mode-toggle is-active' : 'qr-mode-toggle'}
+                        className={generatorMode === 'qr' ? 'generator-mode-toggle is-active' : 'generator-mode-toggle'}
                         type="button"
                         aria-pressed={generatorMode === 'qr'}
                         onClick={() => {
@@ -278,6 +243,47 @@ function App() {
                         QR-kód
                     </button>
                 </div>
+
+                {generatorMode === 'barcode' && (
+                    <div className="format-control">
+                        <button
+                            className="format-toggle"
+                            type="button"
+                            aria-expanded={isFormatOpen}
+                            aria-controls="format-panel"
+                            aria-label={`Vonalkód formátuma: ${selectedFormat.label}`}
+                            onClick={() => setIsFormatOpen((isOpen) => !isOpen)}
+                        >
+                            <span className="format-toggle-label">Formátum</span>
+                            <span className="format-toggle-value">{selectedFormat.label}</span>
+                        </button>
+
+                        <div className="format-field" id="format-panel" hidden={!isFormatOpen}>
+                            <label className="input-label" htmlFor="barcode-format">Vonalkód típusa</label>
+                            <select
+                                className="format-select"
+                                id="barcode-format"
+                                value={format}
+                                onChange={(event) => {
+                                    setFormat(event.target.value);
+                                    setIsFormatOpen(false);
+                                }}
+                                aria-describedby="format-help"
+                            >
+                                {FORMAT_GROUPS.map((group) => (
+                                    <optgroup label={group.label} key={group.label}>
+                                        {group.formats.map((option) => (
+                                            <option value={option.value} key={option.value}>{option.label}</option>
+                                        ))}
+                                    </optgroup>
+                                ))}
+                            </select>
+                            <p className={validationError ? 'format-help format-error' : 'format-help'} id="format-help" role={validationError ? 'alert' : 'status'}>
+                                {validationError || selectedFormat.hint}
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 <label className="input-label" htmlFor="barcode-value">Kód értéke</label>
                 <div className="input-row">
