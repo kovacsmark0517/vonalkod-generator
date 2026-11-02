@@ -1,10 +1,10 @@
 import Barcode from 'react-barcode';
 import './BarcodeComponent.css';
 
-function BarcodeComponent({ value }) {
+function BarcodeComponent({ value, format }) {
     return (
         <div className="barcode-graphic" role="img" aria-label={`Vonalkód: ${value}`}>
-            <Barcode value={value} format="CODE128" />
+            <Barcode value={value} format={format} />
         </div>
     );
 }

@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import App from './App';
 
-jest.mock('./components/barcodeComponent', () => function MockBarcodeComponent({ value }) {
-  return <div role="img" aria-label={`Vonalkód: ${value}`} />;
+jest.mock('./components/barcodeComponent', () => function MockBarcodeComponent({ value, format }) {
+  return <div role="img" aria-label={`Vonalkód ${format}: ${value}`} />;
 });
 
 beforeEach(() => {
@@ -15,31 +15,52 @@ test('updates the barcode when its input changes', () => {
   const input = screen.getByRole('textbox', { name: 'Vonalkód értéke' });
   fireEvent.change(input, { target: { value: 'TERM-123' } });
 
-  expect(screen.getByRole('img', { name: 'Vonalkód: TERM-123' })).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: 'Vonalkód CODE128: TERM-123' })).toBeInTheDocument();
 });
 
-test('saves, restores, selects, and deletes a barcode', () => {
+test('validates and saves a format, then restores and deletes it', () => {
   const { unmount } = render(<App />);
   const input = screen.getByRole('textbox', { name: 'Vonalkód értéke' });
+  const formatSelect = screen.getByRole('combobox', { name: 'Vonalkód típusa' });
 
-  fireEvent.change(input, { target: { value: 'TERM-123' } });
+  fireEvent.change(formatSelect, { target: { value: 'EAN13' } });
+  fireEvent.change(input, { target: { value: 'not-a-number' } });
+  expect(screen.getByRole('alert')).toHaveTextContent(/EAN-13/);
+  expect(screen.getByRole('button', { name: 'Mentés' })).toBeDisabled();
+
+  fireEvent.change(input, { target: { value: '400638133393' } });
+  expect(screen.getByRole('img', { name: 'Vonalkód EAN13: 400638133393' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Mentés' }));
 
-  expect(window.localStorage.getItem('barcode-generator:saved-codes')).toBe('["TERM-123"]');
+  expect(JSON.parse(window.localStorage.getItem('barcode-generator:saved-codes'))).toEqual([
+    { value: '400638133393', format: 'EAN13' },
+  ]);
   unmount();
 
   render(<App />);
-  expect(screen.getByRole('button', { name: 'TERM-123' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'EAN-13 400638133393' })).toBeInTheDocument();
 
   fireEvent.change(screen.getByRole('textbox', { name: 'Vonalkód értéke' }), {
     target: { value: 'OTHER-456' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'TERM-123' }));
+  fireEvent.click(screen.getByRole('button', { name: 'EAN-13 400638133393' }));
 
-  expect(screen.getByRole('textbox', { name: 'Vonalkód értéke' })).toHaveValue('TERM-123');
-  expect(screen.getByRole('img', { name: 'Vonalkód: TERM-123' })).toBeInTheDocument();
+  expect(screen.getByRole('textbox', { name: 'Vonalkód értéke' })).toHaveValue('400638133393');
+  expect(screen.getByRole('combobox', { name: 'Vonalkód típusa' })).toHaveValue('EAN13');
+  expect(screen.getByRole('img', { name: 'Vonalkód EAN13: 400638133393' })).toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole('button', { name: 'TERM-123 törlése' }));
-  expect(screen.queryByRole('button', { name: 'TERM-123' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '400638133393 (EAN-13) törlése' }));
+  expect(screen.queryByRole('button', { name: 'EAN-13 400638133393' })).not.toBeInTheDocument();
   expect(window.localStorage.getItem('barcode-generator:saved-codes')).toBe('[]');
+});
+
+test('migrates older text-only saves to Code 128', () => {
+  window.localStorage.setItem('barcode-generator:saved-codes', '["OLD-123"]');
+
+  render(<App />);
+
+  expect(screen.getByRole('button', { name: 'Code 128 OLD-123' })).toBeInTheDocument();
+  expect(JSON.parse(window.localStorage.getItem('barcode-generator:saved-codes'))).toEqual([
+    { value: 'OLD-123', format: 'CODE128' },
+  ]);
 });

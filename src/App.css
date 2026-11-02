@@ -80,12 +80,49 @@
   line-height: 1.08;
 }
 
+.format-field {
+  margin-bottom: 24px;
+}
+
 .input-label {
   display: block;
   margin-bottom: 10px;
   color: #4a5951;
   font-size: 12px;
   font-weight: 700;
+}
+
+.format-select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(24, 56, 47, 0.2);
+  border-bottom: 2px solid #18382f;
+  border-radius: 0;
+  outline: 0;
+  background: rgba(255, 254, 250, 0.72);
+  color: #17241f;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.format-select:focus-visible {
+  outline: 2px solid #e16b43;
+  outline-offset: 2px;
+}
+
+.format-help {
+  min-height: 18px;
+  margin: 8px 0 0;
+  color: #738078;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.format-error,
+.preview-error {
+  color: #b53c31;
 }
 
 .input-row {
@@ -225,6 +262,20 @@
   cursor: pointer;
 }
 
+.saved-code span {
+  display: block;
+}
+
+.saved-format {
+  margin-bottom: 3px;
+  color: #8a948b;
+  font-family: "Bahnschrift", "Arial Narrow", sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .saved-code[aria-pressed="true"] {
   color: #b94d31;
   font-weight: 700;
@@ -274,6 +325,12 @@
   border: 1px dashed #c9cec4;
 }
 
+.preview-error {
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+}
+
 .barcode-graphic {
   display: flex;
   justify-content: center;
@@ -302,6 +359,10 @@
 
   .workspace h1 {
     margin-bottom: 34px;
+  }
+
+  .format-field {
+    margin-bottom: 22px;
   }
 
   .input-row input {
