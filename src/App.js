@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import './App.css';
 import BarcodeComponent from './components/barcodeComponent';
 
@@ -49,7 +50,7 @@ const FORMATS = FORMAT_GROUPS.flatMap((group) => group.formats);
 const FORMATS_BY_VALUE = Object.fromEntries(FORMATS.map((format) => [format.value, format]));
 const UPC_E_EXPANSIONS = ['XX00000XXX', 'XX10000XXX', 'XX20000XXX', 'XXX00000XX', 'XXXX00000X', 'XXXXX00005', 'XXXXX00006', 'XXXXX00007', 'XXXXX00008', 'XXXXX00009'];
 
-const barcodeId = ({ value, format }) => `${format}\u0000${value}`;
+const savedCodeId = ({ value, kind = 'barcode', format }) => `${kind}\u0000${format || ''}\u0000${value}`;
 
 function readSavedBarcodes() {
     try {
@@ -57,17 +58,20 @@ function readSavedBarcodes() {
         if (!Array.isArray(storedBarcodes)) return [];
 
         const normalizedBarcodes = storedBarcodes.reduce((barcodes, savedBarcode) => {
-            const barcode = typeof savedBarcode === 'string'
-                ? { value: savedBarcode, format: DEFAULT_FORMAT }
+            const storedCode = typeof savedBarcode === 'string'
+                ? { value: savedBarcode, kind: 'barcode', format: DEFAULT_FORMAT }
                 : savedBarcode;
+            const kind = storedCode && storedCode.kind === 'qr' ? 'qr' : 'barcode';
+            const code = kind === 'qr'
+                ? { value: storedCode && storedCode.value, kind }
+                : { value: storedCode && storedCode.value, kind, format: storedCode && storedCode.format };
 
             if (
-                barcode &&
-                typeof barcode.value === 'string' &&
-                FORMATS_BY_VALUE[barcode.format] &&
-                !barcodes.some((item) => barcodeId(item) === barcodeId(barcode))
+                typeof code.value === 'string' &&
+                (kind === 'qr' || FORMATS_BY_VALUE[code.format]) &&
+                !barcodes.some((item) => savedCodeId(item) === savedCodeId(code))
             ) {
-                barcodes.push({ value: barcode.value, format: barcode.format });
+                barcodes.push(code);
             }
 
             return barcodes;
@@ -77,6 +81,10 @@ function readSavedBarcodes() {
     } catch {
         return [];
     }
+}
+
+function savedCodeType(code) {
+    return code.kind === 'qr' ? 'QR-kód' : FORMATS_BY_VALUE[code.format].label;
 }
 
 function checkDigit(digits, firstWeight, secondWeight) {
@@ -174,12 +182,14 @@ function isValidUpce(value) {
 
 function App() {
     const [value, setValue] = useState('');
+    const [generatorMode, setGeneratorMode] = useState('barcode');
     const [format, setFormat] = useState(DEFAULT_FORMAT);
+    const [isFormatOpen, setIsFormatOpen] = useState(false);
     const [savedBarcodes, setSavedBarcodes] = useState(readSavedBarcodes);
     const selectedFormat = FORMATS_BY_VALUE[format];
-    const validationError = getValidationError(format, value);
-    const currentBarcode = { value, format };
-    const isSaved = savedBarcodes.some((barcode) => barcodeId(barcode) === barcodeId(currentBarcode));
+    const validationError = generatorMode === 'barcode' ? getValidationError(format, value) : '';
+    const currentCode = generatorMode === 'qr' ? { value, kind: 'qr' } : { value, kind: 'barcode', format };
+    const isSaved = savedBarcodes.some((barcode) => savedCodeId(barcode) === savedCodeId(currentCode));
 
     useEffect(() => {
         try {
@@ -189,13 +199,13 @@ function App() {
         }
     }, [savedBarcodes]);
 
-    const saveBarcode = () => {
+    const saveCode = () => {
         if (!value.trim() || validationError || isSaved) return;
-        setSavedBarcodes((current) => [currentBarcode, ...current]);
+        setSavedBarcodes((current) => [currentCode, ...current]);
     };
 
-    const deleteBarcode = (barcodeToDelete) => {
-        setSavedBarcodes((current) => current.filter((barcode) => barcodeId(barcode) !== barcodeId(barcodeToDelete)));
+    const deleteCode = (codeToDelete) => {
+        setSavedBarcodes((current) => current.filter((barcode) => savedCodeId(barcode) !== savedCodeId(codeToDelete)));
     };
 
     return (
@@ -206,32 +216,70 @@ function App() {
             </header>
 
             <section className="workspace" aria-labelledby="page-title">
-                <p className="eyebrow">{selectedFormat.label.toUpperCase()} <span aria-hidden="true">·</span> VONALKÓD</p>
+                <p className="eyebrow">{generatorMode === 'qr' ? 'QR-KÓD' : `${selectedFormat.label.toUpperCase()} · VONALKÓD`}</p>
                 <h1 id="page-title">Vonalkód generátor</h1>
 
-                <div className="format-field">
-                    <label className="input-label" htmlFor="barcode-format">Vonalkód típusa</label>
-                    <select
-                        className="format-select"
-                        id="barcode-format"
-                        value={format}
-                        onChange={(event) => setFormat(event.target.value)}
-                        aria-describedby="format-help"
+                <div className="generator-mode-row">
+                    <div className="format-control">
+                    <button
+                        className="format-toggle"
+                        type="button"
+                        aria-expanded={isFormatOpen}
+                        aria-pressed={generatorMode === 'barcode'}
+                        aria-controls="format-panel"
+                        aria-label={`Vonalkód: ${selectedFormat.label}`}
+                        onClick={() => {
+                            if (generatorMode !== 'barcode') {
+                                setGeneratorMode('barcode');
+                                setIsFormatOpen(true);
+                            } else {
+                                setIsFormatOpen((isOpen) => !isOpen);
+                            }
+                        }}
                     >
-                        {FORMAT_GROUPS.map((group) => (
-                            <optgroup label={group.label} key={group.label}>
-                                {group.formats.map((option) => (
-                                    <option value={option.value} key={option.value}>{option.label}</option>
-                                ))}
-                            </optgroup>
-                        ))}
-                    </select>
-                    <p className={validationError ? 'format-help format-error' : 'format-help'} id="format-help" role={validationError ? 'alert' : 'status'}>
-                        {validationError || selectedFormat.hint}
-                    </p>
+                        <span className="format-toggle-label">Vonalkód</span>
+                        <span className="format-toggle-value">{selectedFormat.label}</span>
+                    </button>
+
+                    <div className="format-field" id="format-panel" hidden={!isFormatOpen}>
+                        <label className="input-label" htmlFor="barcode-format">Vonalkód típusa</label>
+                        <select
+                            className="format-select"
+                            id="barcode-format"
+                            value={format}
+                            onChange={(event) => {
+                                setFormat(event.target.value);
+                                setIsFormatOpen(false);
+                            }}
+                            aria-describedby="format-help"
+                        >
+                            {FORMAT_GROUPS.map((group) => (
+                                <optgroup label={group.label} key={group.label}>
+                                    {group.formats.map((option) => (
+                                        <option value={option.value} key={option.value}>{option.label}</option>
+                                    ))}
+                                </optgroup>
+                            ))}
+                        </select>
+                        <p className={validationError ? 'format-help format-error' : 'format-help'} id="format-help" role={validationError ? 'alert' : 'status'}>
+                            {validationError || selectedFormat.hint}
+                        </p>
+                    </div>
+                    </div>
+                    <button
+                        className={generatorMode === 'qr' ? 'qr-mode-toggle is-active' : 'qr-mode-toggle'}
+                        type="button"
+                        aria-pressed={generatorMode === 'qr'}
+                        onClick={() => {
+                            setGeneratorMode('qr');
+                            setIsFormatOpen(false);
+                        }}
+                    >
+                        QR-kód
+                    </button>
                 </div>
 
-                <label className="input-label" htmlFor="barcode-value">Vonalkód értéke</label>
+                <label className="input-label" htmlFor="barcode-value">Kód értéke</label>
                 <div className="input-row">
                     <input
                         id="barcode-value"
@@ -245,7 +293,7 @@ function App() {
                     <button
                         className="save-button"
                         type="button"
-                        onClick={saveBarcode}
+                        onClick={saveCode}
                         disabled={!value.trim() || Boolean(validationError) || isSaved}
                     >
                         Mentés
@@ -257,33 +305,45 @@ function App() {
                     )}
                 </div>
 
+                <section className="preview" aria-label={generatorMode === 'qr' ? 'QR-kód előnézete' : 'Vonalkód előnézete'} aria-live="polite">
+                    {value.trim() && !validationError
+                        ? generatorMode === 'qr'
+                            ? <div className="qr-graphic" role="img" aria-label={`QR-kód: ${value}`}><QRCodeSVG value={value} size={240} level="M" /></div>
+                            : <BarcodeComponent value={value} format={format} />
+                        : validationError
+                            ? <p className="preview-error">Javítsd a kódot a vonalkód megjelenítéséhez.</p>
+                            : <div className="empty-preview" aria-hidden="true" />}
+                </section>
+
                 <section className="saved-section" aria-labelledby="saved-title">
                     <div className="saved-heading">
-                        <h2 id="saved-title">Mentett vonalkódok</h2>
+                        <h2 id="saved-title">Mentett kódok</h2>
                         <span className="saved-count">{savedBarcodes.length}</span>
                     </div>
                     {savedBarcodes.length > 0 ? (
                         <ul className="saved-list">
                             {savedBarcodes.map((barcode) => (
-                                <li className="saved-item" key={barcodeId(barcode)}>
+                                <li className="saved-item" key={savedCodeId(barcode)}>
                                     <button
                                         className="saved-code"
                                         type="button"
                                         onClick={() => {
                                             setValue(barcode.value);
-                                            setFormat(barcode.format);
+                                            setGeneratorMode(barcode.kind);
+                                            if (barcode.kind === 'barcode') setFormat(barcode.format);
+                                            setIsFormatOpen(false);
                                         }}
-                                        aria-label={`${FORMATS_BY_VALUE[barcode.format].label} ${barcode.value}`}
-                                        aria-pressed={barcodeId(currentBarcode) === barcodeId(barcode)}
+                                        aria-label={`${savedCodeType(barcode)} ${barcode.value}`}
+                                        aria-pressed={savedCodeId(currentCode) === savedCodeId(barcode)}
                                     >
-                                        <span className="saved-format">{FORMATS_BY_VALUE[barcode.format].label}</span>
+                                        <span className="saved-format">{savedCodeType(barcode)}</span>
                                         <span>{barcode.value}</span>
                                     </button>
                                     <button
                                         className="delete-saved-button"
                                         type="button"
-                                        onClick={() => deleteBarcode(barcode)}
-                                        aria-label={`${barcode.value} (${FORMATS_BY_VALUE[barcode.format].label}) törlése`}
+                                        onClick={() => deleteCode(barcode)}
+                                        aria-label={`${barcode.value} (${savedCodeType(barcode)}) törlése`}
                                         title="Vonalkód törlése"
                                     >
                                         <span aria-hidden="true">×</span>
@@ -292,17 +352,10 @@ function App() {
                             ))}
                         </ul>
                     ) : (
-                        <p className="empty-saved">Még nincs mentett vonalkód.</p>
+                        <p className="empty-saved">Még nincs mentett kód.</p>
                     )}
                 </section>
 
-                <section className="preview" aria-label="Vonalkód előnézete" aria-live="polite">
-                    {value.trim() && !validationError
-                        ? <BarcodeComponent value={value} format={format} />
-                        : validationError
-                            ? <p className="preview-error">Javítsd a kódot a vonalkód megjelenítéséhez.</p>
-                            : <div className="empty-preview" aria-hidden="true" />}
-                </section>
             </section>
         </main>
     );

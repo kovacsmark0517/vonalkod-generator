@@ -80,8 +80,87 @@
   line-height: 1.08;
 }
 
-.format-field {
+.generator-mode-row {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
   margin-bottom: 24px;
+}
+
+.format-control {
+  margin-bottom: 0;
+}
+
+.qr-mode-toggle {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #68746d;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.qr-mode-toggle:hover,
+.qr-mode-toggle.is-active,
+.format-toggle[aria-pressed="true"] {
+  color: #18382f;
+  font-weight: 700;
+}
+
+.qr-mode-toggle:hover,
+.qr-mode-toggle.is-active,
+.format-toggle[aria-pressed="true"] .format-toggle-value {
+  text-decoration: underline;
+  text-decoration-color: #e16b43;
+  text-underline-offset: 3px;
+}
+
+.generator-mode-row .format-field {
+  margin-bottom: 0;
+}
+
+.qr-mode-toggle:focus-visible {
+  outline: 2px solid #e16b43;
+  outline-offset: 3px;
+}
+
+.format-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #68746d;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.format-toggle:hover .format-toggle-value {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.format-toggle-label {
+  color: #4a5951;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.format-toggle-value {
+  color: #18382f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.format-field {
+  margin-top: 12px;
+}
+
+.format-field[hidden] {
+  display: none;
 }
 
 .input-label {
@@ -108,6 +187,11 @@
 }
 
 .format-select:focus-visible {
+  outline: 2px solid #e16b43;
+  outline-offset: 2px;
+}
+
+.format-toggle:focus-visible {
   outline: 2px solid #e16b43;
   outline-offset: 2px;
 }
@@ -344,6 +428,18 @@
   height: auto;
 }
 
+.qr-graphic {
+  display: grid;
+  width: 100%;
+  place-items: center;
+}
+
+.qr-graphic svg {
+  display: block;
+  width: min(100%, 240px);
+  height: auto;
+}
+
 @media (max-width: 520px) {
   .app-shell {
     padding: 0 18px;
@@ -361,7 +457,11 @@
     margin-bottom: 34px;
   }
 
-  .format-field {
+  .generator-mode-row {
+    gap: 14px;
+  }
+
+  .format-control {
     margin-bottom: 22px;
   }
 
