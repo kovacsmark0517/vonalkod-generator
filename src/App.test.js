@@ -27,6 +27,24 @@ test('places the generated preview before the saved codes', () => {
   expect(preview.compareDocumentPosition(savedCodes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
+test('switches from QR to barcode without opening the format menu', () => {
+  render(<App />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'QR-kód' }));
+  expect(screen.queryByRole('combobox', { name: 'Vonalkód típusa' })).not.toBeInTheDocument();
+
+  const barcodeMode = screen.getByRole('button', { name: 'Vonalkód: Code 128' });
+  fireEvent.click(barcodeMode);
+
+  expect(barcodeMode).toHaveAttribute('aria-pressed', 'true');
+  expect(barcodeMode).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByRole('combobox', { name: 'Vonalkód típusa' })).not.toBeInTheDocument();
+
+  fireEvent.click(barcodeMode);
+  expect(barcodeMode).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByRole('combobox', { name: 'Vonalkód típusa' })).toBeInTheDocument();
+});
+
 test('validates and saves a format, then restores and deletes it', () => {
   const { unmount } = render(<App />);
   const input = screen.getByRole('textbox', { name: 'Kód értéke' });

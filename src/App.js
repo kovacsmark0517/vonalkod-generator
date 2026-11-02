@@ -231,7 +231,7 @@ function App() {
                         onClick={() => {
                             if (generatorMode !== 'barcode') {
                                 setGeneratorMode('barcode');
-                                setIsFormatOpen(true);
+                                    setIsFormatOpen(false);
                             } else {
                                 setIsFormatOpen((isOpen) => !isOpen);
                             }
