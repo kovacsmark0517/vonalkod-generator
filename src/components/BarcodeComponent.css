@@ -1,0 +1,12 @@
+.barcode-graphic {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    overflow: hidden;
+}
+
+.barcode-graphic svg {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+}
