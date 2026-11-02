@@ -131,10 +131,130 @@
   color: #c9512b;
 }
 
+.save-button {
+  flex: 0 0 auto;
+  margin: 7px 0 7px 7px;
+  padding: 0 16px;
+  border: 0;
+  background: #18382f;
+  color: #f3f2e9;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.save-button:hover:not(:disabled) {
+  background: #285447;
+}
+
+.save-button:disabled {
+  background: #dfe3d9;
+  color: #8c958d;
+  cursor: not-allowed;
+}
+
 .input-row input:focus-visible,
-.clear-button:focus-visible {
+.clear-button:focus-visible,
+.save-button:focus-visible,
+.saved-code:focus-visible,
+.delete-saved-button:focus-visible {
   outline: 2px solid #e16b43;
   outline-offset: -3px;
+}
+
+.saved-section {
+  margin-top: 34px;
+}
+
+.saved-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid rgba(23, 36, 31, 0.16);
+}
+
+.saved-heading h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.saved-count {
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  padding: 0 5px;
+  background: #d3ec5b;
+  color: #18382f;
+  font-size: 10px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.saved-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.saved-item {
+  display: flex;
+  min-height: 45px;
+  align-items: center;
+  border-bottom: 1px solid rgba(23, 36, 31, 0.1);
+}
+
+.saved-code {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  padding: 8px 10px 8px 0;
+  border: 0;
+  background: transparent;
+  color: #263a31;
+  text-align: left;
+  font: inherit;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.saved-code[aria-pressed="true"] {
+  color: #b94d31;
+  font-weight: 700;
+}
+
+.delete-saved-button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #c34234;
+  font: inherit;
+  font-size: 25px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.delete-saved-button:hover {
+  background: rgba(195, 66, 52, 0.1);
+  color: #a52e24;
+}
+
+.empty-saved {
+  margin: 0;
+  padding: 14px 0 0;
+  color: #7d887f;
+  font-size: 12px;
 }
 
 .preview {
@@ -182,6 +302,20 @@
 
   .workspace h1 {
     margin-bottom: 34px;
+  }
+
+  .input-row input {
+    padding: 0 10px;
+  }
+
+  .save-button {
+    margin-left: 4px;
+    padding: 0 10px;
+  }
+
+  .clear-button {
+    margin: 7px 3px;
+    padding: 0 7px;
   }
 
   .preview {
