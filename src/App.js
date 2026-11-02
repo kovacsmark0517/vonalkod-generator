@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import './App.css';
 import BarcodeComponent from './components/barcodeComponent';
@@ -180,12 +180,103 @@ function isValidUpce(value) {
     return value[7] === checkDigit(upcWithoutCheck, 3, 1);
 }
 
+async function createPngBlob(svg, caption) {
+    const viewBox = svg.getAttribute('viewBox')?.trim().split(/\s+/).map(Number);
+    const bounds = svg.getBoundingClientRect();
+    const width = viewBox?.[2] || (svg.getAttribute('width')?.endsWith('%') ? bounds.width : Number.parseFloat(svg.getAttribute('width'))) || bounds.width;
+    const height = viewBox?.[3] || (svg.getAttribute('height')?.endsWith('%') ? bounds.height : Number.parseFloat(svg.getAttribute('height'))) || bounds.height;
+
+    if (!width || !height) throw new Error('A kód mérete nem olvasható.');
+
+    const copy = svg.cloneNode(true);
+    copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    copy.setAttribute('width', String(width));
+    copy.setAttribute('height', String(height));
+    copy.querySelectorAll('text').forEach((text) => text.remove());
+
+    const svgUrl = window.URL.createObjectURL(new Blob(
+        [new XMLSerializer().serializeToString(copy)],
+        { type: 'image/svg+xml;charset=utf-8' },
+    ));
+
+    try {
+        const image = new Image();
+        await new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = reject;
+            image.src = svgUrl;
+        });
+
+        const scale = Math.min(6, Math.max(3, Math.ceil(1800 / width)));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(width * scale);
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('A kép nem készíthető el.');
+
+        const padding = 18 * scale;
+        const lineHeight = 22 * scale;
+        context.font = `${15 * scale}px Consolas, "Courier New", monospace`;
+        const maxTextWidth = canvas.width - padding * 2;
+        const lines = [];
+        let line = '';
+
+        for (const character of caption) {
+            const nextLine = line + character;
+            if (line && context.measureText(nextLine).width > maxTextWidth) {
+                lines.push(line);
+                line = character;
+            } else {
+                line = nextLine;
+            }
+        }
+        if (line) lines.push(line);
+
+        const imageHeight = Math.ceil(height * scale);
+        canvas.height = imageHeight + padding * 2 + lines.length * lineHeight;
+        const finalContext = canvas.getContext('2d');
+        if (!finalContext) throw new Error('A kép nem készíthető el.');
+
+        finalContext.fillStyle = '#ffffff';
+        finalContext.fillRect(0, 0, canvas.width, canvas.height);
+        finalContext.drawImage(image, 0, 0, canvas.width, imageHeight);
+        finalContext.fillStyle = '#17241f';
+        finalContext.font = `${15 * scale}px Consolas, "Courier New", monospace`;
+        finalContext.textAlign = 'center';
+        finalContext.textBaseline = 'top';
+        lines.forEach((text, index) => {
+            finalContext.fillText(text, canvas.width / 2, imageHeight + padding + index * lineHeight);
+        });
+
+        return await new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (blob) resolve(blob);
+                else reject(new Error('A PNG nem készíthető el.'));
+            }, 'image/png');
+        });
+    } finally {
+        window.URL.revokeObjectURL(svgUrl);
+    }
+}
+
+function safeFilePart(value) {
+    const safeValue = [...value.trim()].map((character) => {
+        if (/[<>:"/\\|?*]/.test(character) || character.charCodeAt(0) < 32) return '_';
+        return /\s/.test(character) ? '-' : character;
+    }).join('');
+
+    return safeValue.slice(0, 60) || 'kod';
+}
+
 function App() {
     const [value, setValue] = useState('');
     const [generatorMode, setGeneratorMode] = useState('barcode');
     const [format, setFormat] = useState(DEFAULT_FORMAT);
     const [isFormatOpen, setIsFormatOpen] = useState(false);
+    const [isDownloadOpen, setIsDownloadOpen] = useState(false);
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [downloadError, setDownloadError] = useState('');
     const [savedBarcodes, setSavedBarcodes] = useState(readSavedBarcodes);
+    const previewRef = useRef(null);
     const selectedFormat = FORMATS_BY_VALUE[format];
     const validationError = generatorMode === 'barcode' ? getValidationError(format, value) : '';
     const currentCode = generatorMode === 'qr' ? { value, kind: 'qr' } : { value, kind: 'barcode', format };
@@ -206,6 +297,47 @@ function App() {
 
     const deleteCode = (codeToDelete) => {
         setSavedBarcodes((current) => current.filter((barcode) => savedCodeId(barcode) !== savedCodeId(codeToDelete)));
+    };
+
+    const getExportBaseName = () => {
+        const codeType = generatorMode === 'qr' ? 'qr-kod' : format.toLowerCase();
+        return `${codeType}-${safeFilePart(value)}`;
+    };
+
+    const downloadPng = async () => {
+        if (isDownloading) return;
+        setIsDownloading(true);
+        setDownloadError('');
+
+        try {
+            const svg = previewRef.current?.querySelector('svg');
+            if (!svg) throw new Error('Nem található letölthető kód.');
+
+            const blob = await createPngBlob(svg, value);
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${getExportBaseName()}.png`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+            setIsDownloadOpen(false);
+        } catch {
+            setDownloadError('A PNG mentése nem sikerült.');
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
+    const savePdf = () => {
+        const previousTitle = document.title;
+        document.title = getExportBaseName();
+        window.addEventListener('afterprint', () => {
+            document.title = previousTitle;
+        }, { once: true });
+        setIsDownloadOpen(false);
+        window.print();
     };
 
     return (
@@ -311,7 +443,12 @@ function App() {
                     )}
                 </div>
 
-                <section className="preview" aria-label={generatorMode === 'qr' ? 'QR-kód előnézete' : 'Vonalkód előnézete'} aria-live="polite">
+                <section
+                    className="preview"
+                    ref={previewRef}
+                    aria-label={generatorMode === 'qr' ? 'QR-kód előnézete' : 'Vonalkód előnézete'}
+                    aria-live="polite"
+                >
                     {value.trim() && !validationError
                         ? generatorMode === 'qr'
                             ? <div className="qr-graphic" role="img" aria-label={`QR-kód: ${value}`}><QRCodeSVG value={value} size={240} level="M" /></div>
@@ -319,7 +456,33 @@ function App() {
                         : validationError
                             ? <p className="preview-error">Javítsd a kódot a vonalkód megjelenítéséhez.</p>
                             : <div className="empty-preview" aria-hidden="true" />}
+                    {value.trim() && !validationError && <p className="print-code-value">{value}</p>}
                 </section>
+
+                {value.trim() && !validationError && (
+                    <div className="export-control">
+                        <button
+                            className="export-toggle"
+                            type="button"
+                            aria-expanded={isDownloadOpen}
+                            aria-controls="export-options"
+                            onClick={() => setIsDownloadOpen((isOpen) => !isOpen)}
+                        >
+                            Letöltés
+                        </button>
+                        {isDownloadOpen && (
+                            <div className="export-options" id="export-options" role="group" aria-label="Letöltési formátum">
+                                <button type="button" onClick={downloadPng} disabled={isDownloading}>
+                                    PNG-kép
+                                </button>
+                                <button type="button" onClick={savePdf}>
+                                    PDF mentése
+                                </button>
+                            </div>
+                        )}
+                        {downloadError && <p className="download-error" role="alert">{downloadError}</p>}
+                    </div>
+                )}
 
                 <section className="saved-section" aria-labelledby="saved-title">
                     <div className="saved-heading">

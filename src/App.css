@@ -434,6 +434,83 @@
   height: auto;
 }
 
+.print-code-value {
+  display: none;
+}
+
+.export-control {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.export-toggle {
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  color: #18382f;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.export-toggle:hover {
+  color: #c9512b;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.export-options {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 4px);
+  right: 0;
+  display: grid;
+  min-width: 180px;
+  padding: 4px;
+  border: 1px solid rgba(24, 56, 47, 0.18);
+  background: #fffefa;
+  box-shadow: 0 8px 20px rgba(27, 44, 36, 0.12);
+}
+
+.export-options button {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: #263a31;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.export-options button:hover:not(:disabled) {
+  background: #f0f1e9;
+}
+
+.export-options button:disabled {
+  color: #8c958d;
+  cursor: progress;
+}
+
+.export-toggle:focus-visible,
+.export-options button:focus-visible {
+  outline: 2px solid #e16b43;
+  outline-offset: -2px;
+}
+
+.download-error {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin: 4px 0 0;
+  color: #b53c31;
+  font-size: 11px;
+}
+
 @media (max-width: 520px) {
   .app-shell {
     padding: 0 18px;
@@ -476,6 +553,73 @@
   .preview {
     min-height: 140px;
     padding: 20px 14px;
+  }
+}
+
+@media print {
+  @page {
+    margin: 14mm;
+    size: A4 portrait;
+  }
+
+  html,
+  body,
+  #root,
+  .app-shell {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    background: #fff !important;
+    background-image: none !important;
+  }
+
+  .topbar,
+  .workspace > :not(.preview) {
+    display: none !important;
+  }
+
+  .workspace {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .preview {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    gap: 8mm;
+    margin: 0;
+    padding: 0;
+    break-inside: avoid;
+    background: #fff;
+    box-shadow: none;
+  }
+
+  .barcode-graphic svg text {
+    display: none !important;
+  }
+
+  .barcode-graphic svg {
+    max-height: 120mm;
+  }
+
+  .qr-graphic svg {
+    width: 75mm;
+    max-width: 100%;
+  }
+
+  .print-code-value {
+    display: block;
+    max-width: 100%;
+    margin: 0;
+    color: #17241f;
+    overflow-wrap: anywhere;
+    text-align: center;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12pt;
   }
 }
 

@@ -133,3 +133,21 @@ test('generates, saves, restores, and deletes QR codes separately', () => {
   fireEvent.click(screen.getByRole('button', { name: `${value} (QR-kód) törlése` }));
   expect(screen.queryByRole('button', { name: `QR-kód ${value}` })).not.toBeInTheDocument();
 });
+
+test('offers PNG and PDF export for a generated QR code', () => {
+  render(<App />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'QR-kód' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Kód értéke' }), {
+    target: { value: 'https://example.com/export-123' },
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: 'Letöltés' }));
+  expect(screen.getByRole('button', { name: 'PNG-kép' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'PDF mentése' })).toBeInTheDocument();
+
+  const printSpy = jest.spyOn(window, 'print').mockImplementation(() => {});
+  fireEvent.click(screen.getByRole('button', { name: 'PDF mentése' }));
+  expect(printSpy).toHaveBeenCalledTimes(1);
+  printSpy.mockRestore();
+});
