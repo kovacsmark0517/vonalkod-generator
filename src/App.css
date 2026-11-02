@@ -230,6 +230,33 @@
   color: #9aa198;
 }
 
+.name-label {
+  margin-top: 20px;
+}
+
+.name-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(24, 56, 47, 0.2);
+  border-bottom: 2px solid #18382f;
+  border-radius: 0;
+  outline: 0;
+  background: rgba(255, 254, 250, 0.72);
+  color: #17241f;
+  font: inherit;
+  font-size: 14px;
+}
+
+.name-input::placeholder {
+  color: #9aa198;
+}
+
+.name-input:focus-visible {
+  outline: 2px solid #e16b43;
+  outline-offset: 2px;
+}
+
 .clear-button {
   flex: 0 0 auto;
   margin: 8px;
@@ -344,6 +371,13 @@
   display: block;
 }
 
+.saved-name {
+  margin-bottom: 3px;
+  color: #263a31;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .saved-format {
   margin-bottom: 3px;
   color: #8a948b;
@@ -394,6 +428,16 @@
   padding: 28px;
   background: #fffefa;
   box-shadow: 0 14px 36px rgba(27, 44, 36, 0.1), 0 2px 5px rgba(27, 44, 36, 0.08);
+}
+
+.preview-code-name {
+  width: 100%;
+  margin: 0 0 8px;
+  color: #263a31;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .empty-preview {
@@ -596,6 +640,13 @@
     break-inside: avoid;
     background: #fff;
     box-shadow: none;
+  }
+
+  .preview-code-name {
+    display: block;
+    margin: 0 0 8mm;
+    color: #17241f;
+    font-size: 16pt;
   }
 
   .barcode-graphic svg text {

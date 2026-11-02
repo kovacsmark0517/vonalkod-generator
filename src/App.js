@@ -50,7 +50,7 @@ const FORMATS = FORMAT_GROUPS.flatMap((group) => group.formats);
 const FORMATS_BY_VALUE = Object.fromEntries(FORMATS.map((format) => [format.value, format]));
 const UPC_E_EXPANSIONS = ['XX00000XXX', 'XX10000XXX', 'XX20000XXX', 'XXX00000XX', 'XXXX00000X', 'XXXXX00005', 'XXXXX00006', 'XXXXX00007', 'XXXXX00008', 'XXXXX00009'];
 
-const savedCodeId = ({ value, kind = 'barcode', format }) => `${kind}\u0000${format || ''}\u0000${value}`;
+const savedCodeId = ({ value, kind = 'barcode', format, name = '' }) => `${kind}\u0000${format || ''}\u0000${name}\u0000${value}`;
 
 function readSavedBarcodes() {
     try {
@@ -59,12 +59,13 @@ function readSavedBarcodes() {
 
         const normalizedBarcodes = storedBarcodes.reduce((barcodes, savedBarcode) => {
             const storedCode = typeof savedBarcode === 'string'
-                ? { value: savedBarcode, kind: 'barcode', format: DEFAULT_FORMAT }
+                ? { value: savedBarcode, kind: 'barcode', format: DEFAULT_FORMAT, name: '' }
                 : savedBarcode;
             const kind = storedCode && storedCode.kind === 'qr' ? 'qr' : 'barcode';
+            const name = storedCode && typeof storedCode.name === 'string' ? storedCode.name : '';
             const code = kind === 'qr'
-                ? { value: storedCode && storedCode.value, kind }
-                : { value: storedCode && storedCode.value, kind, format: storedCode && storedCode.format };
+                ? { value: storedCode && storedCode.value, kind, name }
+                : { value: storedCode && storedCode.value, kind, format: storedCode && storedCode.format, name };
 
             if (
                 typeof code.value === 'string' &&
@@ -180,11 +181,29 @@ function isValidUpce(value) {
     return value[7] === checkDigit(upcWithoutCheck, 3, 1);
 }
 
-async function createPngBlob(svg, caption) {
+async function createPngBlob(svg, title, caption) {
     const viewBox = svg.getAttribute('viewBox')?.trim().split(/\s+/).map(Number);
     const bounds = svg.getBoundingClientRect();
     const width = viewBox?.[2] || (svg.getAttribute('width')?.endsWith('%') ? bounds.width : Number.parseFloat(svg.getAttribute('width'))) || bounds.width;
     const height = viewBox?.[3] || (svg.getAttribute('height')?.endsWith('%') ? bounds.height : Number.parseFloat(svg.getAttribute('height'))) || bounds.height;
+
+        function wrapText(context, text, maxWidth) {
+            const lines = [];
+            let line = '';
+
+            for (const character of text) {
+                const nextLine = line + character;
+                if (line && context.measureText(nextLine).width > maxWidth) {
+                    lines.push(line);
+                    line = character;
+                } else {
+                    line = nextLine;
+                }
+            }
+
+            if (line || lines.length === 0) lines.push(line);
+            return lines;
+        }
 
     if (!width || !height) throw new Error('A kód mérete nem olvasható.');
 
@@ -209,42 +228,41 @@ async function createPngBlob(svg, caption) {
 
         const scale = Math.min(6, Math.max(3, Math.ceil(1800 / width)));
         const canvas = document.createElement('canvas');
-        canvas.width = Math.ceil(width * scale);
+        const pixelWidth = Math.ceil(width * scale);
+        canvas.width = pixelWidth;
         const context = canvas.getContext('2d');
         if (!context) throw new Error('A kép nem készíthető el.');
 
         const padding = 18 * scale;
         const lineHeight = 22 * scale;
-        context.font = `${15 * scale}px Consolas, "Courier New", monospace`;
-        const maxTextWidth = canvas.width - padding * 2;
-        const lines = [];
-        let line = '';
-
-        for (const character of caption) {
-            const nextLine = line + character;
-            if (line && context.measureText(nextLine).width > maxTextWidth) {
-                lines.push(line);
-                line = character;
-            } else {
-                line = nextLine;
-            }
-        }
-        if (line) lines.push(line);
+        const titleFontSize = 17 * scale;
+        const codeFontSize = 15 * scale;
+        const maxTextWidth = pixelWidth - padding * 2;
+        context.font = `700 ${titleFontSize}px "Trebuchet MS", sans-serif`;
+        const titleLines = title ? wrapText(context, title, maxTextWidth) : [];
+        context.font = `${codeFontSize}px Consolas, "Courier New", monospace`;
+        const codeLines = wrapText(context, caption, maxTextWidth);
 
         const imageHeight = Math.ceil(height * scale);
-        canvas.height = imageHeight + padding * 2 + lines.length * lineHeight;
+        const imageTop = titleLines.length ? padding + titleLines.length * lineHeight + padding / 2 : padding;
+        const codeTop = imageTop + imageHeight + padding;
+        canvas.height = codeTop + codeLines.length * lineHeight + padding;
         const finalContext = canvas.getContext('2d');
         if (!finalContext) throw new Error('A kép nem készíthető el.');
 
         finalContext.fillStyle = '#ffffff';
         finalContext.fillRect(0, 0, canvas.width, canvas.height);
-        finalContext.drawImage(image, 0, 0, canvas.width, imageHeight);
+        finalContext.drawImage(image, 0, imageTop, pixelWidth, imageHeight);
         finalContext.fillStyle = '#17241f';
-        finalContext.font = `${15 * scale}px Consolas, "Courier New", monospace`;
         finalContext.textAlign = 'center';
         finalContext.textBaseline = 'top';
-        lines.forEach((text, index) => {
-            finalContext.fillText(text, canvas.width / 2, imageHeight + padding + index * lineHeight);
+        finalContext.font = `700 ${titleFontSize}px "Trebuchet MS", sans-serif`;
+        titleLines.forEach((text, index) => {
+            finalContext.fillText(text, pixelWidth / 2, padding + index * lineHeight);
+        });
+        finalContext.font = `${codeFontSize}px Consolas, "Courier New", monospace`;
+        codeLines.forEach((text, index) => {
+            finalContext.fillText(text, pixelWidth / 2, codeTop + index * lineHeight);
         });
 
         return await new Promise((resolve, reject) => {
@@ -269,6 +287,7 @@ function safeFilePart(value) {
 
 function App() {
     const [value, setValue] = useState('');
+    const [name, setName] = useState('');
     const [generatorMode, setGeneratorMode] = useState('barcode');
     const [format, setFormat] = useState(DEFAULT_FORMAT);
     const [isFormatOpen, setIsFormatOpen] = useState(false);
@@ -279,7 +298,9 @@ function App() {
     const previewRef = useRef(null);
     const selectedFormat = FORMATS_BY_VALUE[format];
     const validationError = generatorMode === 'barcode' ? getValidationError(format, value) : '';
-    const currentCode = generatorMode === 'qr' ? { value, kind: 'qr' } : { value, kind: 'barcode', format };
+    const currentCode = generatorMode === 'qr'
+        ? { value, name: name.trim(), kind: 'qr' }
+        : { value, name: name.trim(), kind: 'barcode', format };
     const isSaved = savedBarcodes.some((barcode) => savedCodeId(barcode) === savedCodeId(currentCode));
 
     useEffect(() => {
@@ -301,7 +322,7 @@ function App() {
 
     const getExportBaseName = () => {
         const codeType = generatorMode === 'qr' ? 'qr-kod' : format.toLowerCase();
-        return `${codeType}-${safeFilePart(value)}`;
+        return `${codeType}-${safeFilePart(name.trim() || value)}`;
     };
 
     const downloadPng = async () => {
@@ -313,7 +334,7 @@ function App() {
             const svg = previewRef.current?.querySelector('svg');
             if (!svg) throw new Error('Nem található letölthető kód.');
 
-            const blob = await createPngBlob(svg, value);
+            const blob = await createPngBlob(svg, name.trim(), value);
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -443,12 +464,26 @@ function App() {
                     )}
                 </div>
 
+                <label className="input-label name-label" htmlFor="barcode-name">Elnevezés (opcionális)</label>
+                <input
+                    className="name-input"
+                    id="barcode-name"
+                    type="text"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="pl. Termék neve"
+                    autoComplete="off"
+                />
+
                 <section
                     className="preview"
                     ref={previewRef}
                     aria-label={generatorMode === 'qr' ? 'QR-kód előnézete' : 'Vonalkód előnézete'}
                     aria-live="polite"
                 >
+                    {value.trim() && !validationError && name.trim() && (
+                        <p className="preview-code-name">{name.trim()}</p>
+                    )}
                     {value.trim() && !validationError
                         ? generatorMode === 'qr'
                             ? <div className="qr-graphic" role="img" aria-label={`QR-kód: ${value}`}><QRCodeSVG value={value} size={240} level="M" /></div>
@@ -498,13 +533,15 @@ function App() {
                                         type="button"
                                         onClick={() => {
                                             setValue(barcode.value);
+                                            setName(barcode.name || '');
                                             setGeneratorMode(barcode.kind);
                                             if (barcode.kind === 'barcode') setFormat(barcode.format);
                                             setIsFormatOpen(false);
                                         }}
-                                        aria-label={`${savedCodeType(barcode)} ${barcode.value}`}
+                                        aria-label={`${barcode.name ? `${barcode.name} (${savedCodeType(barcode)})` : savedCodeType(barcode)} ${barcode.value}`}
                                         aria-pressed={savedCodeId(currentCode) === savedCodeId(barcode)}
                                     >
+                                        {barcode.name && <span className="saved-name">{barcode.name}</span>}
                                         <span className="saved-format">{savedCodeType(barcode)}</span>
                                         <span>{barcode.value}</span>
                                     </button>

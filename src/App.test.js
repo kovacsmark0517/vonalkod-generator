@@ -73,7 +73,7 @@ test('validates and saves a format, then restores and deletes it', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Mentés' }));
 
   expect(JSON.parse(window.localStorage.getItem('barcode-generator:saved-codes'))).toEqual([
-    { value: '400638133393', kind: 'barcode', format: 'EAN13' },
+    { value: '400638133393', name: '', kind: 'barcode', format: 'EAN13' },
   ]);
   unmount();
 
@@ -103,30 +103,35 @@ test('migrates older text-only saves to Code 128', () => {
 
   expect(screen.getByRole('button', { name: 'Code 128 OLD-123' })).toBeInTheDocument();
   expect(JSON.parse(window.localStorage.getItem('barcode-generator:saved-codes'))).toEqual([
-    { value: 'OLD-123', kind: 'barcode', format: 'CODE128' },
+    { value: 'OLD-123', name: '', kind: 'barcode', format: 'CODE128' },
   ]);
 });
 
 test('generates, saves, restores, and deletes QR codes separately', () => {
   const { unmount } = render(<App />);
   const value = 'https://example.com/item/42';
+  const name = 'Mintatermék';
 
   fireEvent.click(screen.getByRole('button', { name: 'QR-kód' }));
   expect(screen.getByRole('button', { name: 'QR-kód' })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByRole('button', { name: 'Vonalkód' })).toHaveAttribute('aria-pressed', 'false');
+  fireEvent.change(screen.getByRole('textbox', { name: 'Elnevezés (opcionális)' }), { target: { value: name } });
   fireEvent.change(screen.getByRole('textbox', { name: 'Kód értéke' }), { target: { value } });
 
   expect(screen.getByRole('img', { name: `QR-kód: ${value}` })).toBeInTheDocument();
+  expect(screen.getByText(name)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Mentés' }));
   expect(JSON.parse(window.localStorage.getItem('barcode-generator:saved-codes'))).toContainEqual({
     value,
+    name,
     kind: 'qr',
   });
   unmount();
 
   render(<App />);
-  fireEvent.click(screen.getByRole('button', { name: `QR-kód ${value}` }));
+  fireEvent.click(screen.getByRole('button', { name: `${name} (QR-kód) ${value}` }));
   expect(screen.getByRole('textbox', { name: 'Kód értéke' })).toHaveValue(value);
+  expect(screen.getByRole('textbox', { name: 'Elnevezés (opcionális)' })).toHaveValue(name);
   expect(screen.getByRole('button', { name: 'QR-kód' })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByRole('img', { name: `QR-kód: ${value}` })).toBeInTheDocument();
 
@@ -138,9 +143,13 @@ test('offers PNG and PDF export for a generated QR code', () => {
   render(<App />);
 
   fireEvent.click(screen.getByRole('button', { name: 'QR-kód' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Elnevezés (opcionális)' }), {
+    target: { value: 'Export termék' },
+  });
   fireEvent.change(screen.getByRole('textbox', { name: 'Kód értéke' }), {
     target: { value: 'https://example.com/export-123' },
   });
+  expect(screen.getByText('Export termék')).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('button', { name: 'Letöltés' }));
   expect(screen.getByRole('button', { name: 'PNG-kép' })).toBeInTheDocument();
