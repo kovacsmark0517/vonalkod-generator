@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/vonalkod-generator/static/css/main.9dad5fae.css",
-    "main.js": "/vonalkod-generator/static/js/main.871b0af2.js",
+    "main.js": "/vonalkod-generator/static/js/main.169019a4.js",
     "static/js/453.741c34d7.chunk.js": "/vonalkod-generator/static/js/453.741c34d7.chunk.js",
     "index.html": "/vonalkod-generator/index.html",
     "main.9dad5fae.css.map": "/vonalkod-generator/static/css/main.9dad5fae.css.map",
-    "main.871b0af2.js.map": "/vonalkod-generator/static/js/main.871b0af2.js.map",
+    "main.169019a4.js.map": "/vonalkod-generator/static/js/main.169019a4.js.map",
     "453.741c34d7.chunk.js.map": "/vonalkod-generator/static/js/453.741c34d7.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.9dad5fae.css",
-    "static/js/main.871b0af2.js"
+    "static/js/main.169019a4.js"
   ]
 }
