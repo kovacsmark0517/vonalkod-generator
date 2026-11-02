@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 
 jest.mock('./components/barcodeComponent', () => function MockBarcodeComponent({ value, format }) {
@@ -159,4 +159,66 @@ test('offers PNG and PDF export for a generated QR code', () => {
   fireEvent.click(screen.getByRole('button', { name: 'PDF mentése' }));
   expect(printSpy).toHaveBeenCalledTimes(1);
   printSpy.mockRestore();
+});
+
+test('exports a square QR PNG with the optional name and code text', async () => {
+  const context = {
+    measureText: (text) => ({ width: text.length * 10 }),
+    fillRect: jest.fn(),
+    drawImage: jest.fn(),
+    fillText: jest.fn(),
+  };
+  const originalGetContext = HTMLCanvasElement.prototype.getContext;
+  const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+  const originalCreateObjectURL = window.URL.createObjectURL;
+  const originalRevokeObjectURL = window.URL.revokeObjectURL;
+  const originalImage = global.Image;
+  let exportedCanvas;
+  let downloadedFilename;
+
+  HTMLCanvasElement.prototype.getContext = jest.fn(() => context);
+  HTMLCanvasElement.prototype.toBlob = function (callback, type) {
+    exportedCanvas = this;
+    callback(new Blob(['png'], { type }));
+  };
+  window.URL.createObjectURL = jest.fn(() => 'blob:export-test');
+  window.URL.revokeObjectURL = jest.fn();
+  global.Image = class MockImage {
+    set src(value) {
+      this.onload();
+    }
+  };
+  const anchorClick = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function () {
+    downloadedFilename = this.download;
+  });
+
+  try {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'QR-kód' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Elnevezés (opcionális)' }), {
+      target: { value: 'Teszt termék' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Kód értéke' }), {
+      target: { value: 'SKU-42' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Letöltés' }));
+    fireEvent.click(screen.getByRole('button', { name: 'PNG-kép' }));
+
+    await waitFor(() => expect(anchorClick).toHaveBeenCalled());
+
+    expect(exportedCanvas.width).toBe(1200);
+    expect(exportedCanvas.height).toBe(1200);
+    expect(context.fillText.mock.calls.map(([text]) => text)).toContain('Teszt termék');
+    expect(context.fillText.mock.calls.map(([text]) => text)).toContain('SKU-42');
+    expect(downloadedFilename).toBe('qr-kod-Teszt-termék.png');
+  } finally {
+    anchorClick.mockRestore();
+    HTMLCanvasElement.prototype.getContext = originalGetContext;
+    HTMLCanvasElement.prototype.toBlob = originalToBlob;
+    if (originalCreateObjectURL) window.URL.createObjectURL = originalCreateObjectURL;
+    else delete window.URL.createObjectURL;
+    if (originalRevokeObjectURL) window.URL.revokeObjectURL = originalRevokeObjectURL;
+    else delete window.URL.revokeObjectURL;
+    global.Image = originalImage;
+  }
 });

@@ -181,29 +181,31 @@ function isValidUpce(value) {
     return value[7] === checkDigit(upcWithoutCheck, 3, 1);
 }
 
-async function createPngBlob(svg, title, caption) {
+function wrapText(context, text, maxWidth) {
+    const lines = [];
+    let line = '';
+
+    for (const character of text) {
+        const nextLine = line + character;
+        if (line && context.measureText(nextLine).width > maxWidth) {
+            lines.push(line);
+            line = character;
+        } else {
+            line = nextLine;
+        }
+    }
+
+    if (line || lines.length === 0) lines.push(line);
+    return lines;
+}
+
+async function createPngBlob(svg, title, caption, kind) {
     const viewBox = svg.getAttribute('viewBox')?.trim().split(/\s+/).map(Number);
     const bounds = svg.getBoundingClientRect();
-    const width = viewBox?.[2] || (svg.getAttribute('width')?.endsWith('%') ? bounds.width : Number.parseFloat(svg.getAttribute('width'))) || bounds.width;
-    const height = viewBox?.[3] || (svg.getAttribute('height')?.endsWith('%') ? bounds.height : Number.parseFloat(svg.getAttribute('height'))) || bounds.height;
-
-        function wrapText(context, text, maxWidth) {
-            const lines = [];
-            let line = '';
-
-            for (const character of text) {
-                const nextLine = line + character;
-                if (line && context.measureText(nextLine).width > maxWidth) {
-                    lines.push(line);
-                    line = character;
-                } else {
-                    line = nextLine;
-                }
-            }
-
-            if (line || lines.length === 0) lines.push(line);
-            return lines;
-        }
+    const attributeWidth = svg.getAttribute('width');
+    const attributeHeight = svg.getAttribute('height');
+    const width = bounds.width || (attributeWidth?.endsWith('%') ? 0 : Number.parseFloat(attributeWidth)) || viewBox?.[2];
+    const height = bounds.height || (attributeHeight?.endsWith('%') ? 0 : Number.parseFloat(attributeHeight)) || (viewBox?.[2] ? width * viewBox[3] / viewBox[2] : 0);
 
     if (!width || !height) throw new Error('A kód mérete nem olvasható.');
 
@@ -226,43 +228,52 @@ async function createPngBlob(svg, title, caption) {
             image.src = svgUrl;
         });
 
-        const scale = Math.min(6, Math.max(3, Math.ceil(1800 / width)));
+        const isQr = kind === 'qr';
+        const scale = isQr ? 1 : Math.min(6, Math.max(3, Math.ceil(1800 / width)));
         const canvas = document.createElement('canvas');
-        const pixelWidth = Math.ceil(width * scale);
-        canvas.width = pixelWidth;
+        const canvasWidth = isQr ? 1200 : Math.ceil(width * scale);
+        const imageWidth = isQr ? 900 : canvasWidth;
+        const imageHeight = isQr ? Math.round(imageWidth * height / width) : Math.ceil(height * scale);
+        canvas.width = canvasWidth;
         const context = canvas.getContext('2d');
         if (!context) throw new Error('A kép nem készíthető el.');
 
-        const padding = 18 * scale;
-        const lineHeight = 22 * scale;
-        const titleFontSize = 17 * scale;
-        const codeFontSize = 15 * scale;
-        const maxTextWidth = pixelWidth - padding * 2;
+        const padding = isQr ? 48 : 18 * scale;
+        const lineHeight = isQr ? 44 : 22 * scale;
+        const titleFontSize = isQr ? 36 : 17 * scale;
+        const codeFontSize = isQr ? 28 : 15 * scale;
+        const maxTextWidth = canvasWidth - padding * 2;
         context.font = `700 ${titleFontSize}px "Trebuchet MS", sans-serif`;
         const titleLines = title ? wrapText(context, title, maxTextWidth) : [];
         context.font = `${codeFontSize}px Consolas, "Courier New", monospace`;
         const codeLines = wrapText(context, caption, maxTextWidth);
 
-        const imageHeight = Math.ceil(height * scale);
-        const imageTop = titleLines.length ? padding + titleLines.length * lineHeight + padding / 2 : padding;
-        const codeTop = imageTop + imageHeight + padding;
-        canvas.height = codeTop + codeLines.length * lineHeight + padding;
+        const titleHeight = titleLines.length * lineHeight;
+        const titleGap = titleHeight ? Math.round(lineHeight / 4) : 0;
+        const codeHeight = codeLines.length * lineHeight;
+        const codeGap = codeHeight ? Math.round(lineHeight / 4) : 0;
+        const contentHeight = titleHeight + titleGap + imageHeight + codeGap + codeHeight;
+        canvas.height = Math.max(isQr ? 1200 : 0, contentHeight + padding * 2);
+        const contentTop = Math.max(padding, Math.round((canvas.height - contentHeight) / 2));
+        const imageTop = contentTop + titleHeight + titleGap;
+        const imageLeft = isQr ? Math.round((canvasWidth - imageWidth) / 2) : 0;
+        const codeTop = imageTop + imageHeight + codeGap;
         const finalContext = canvas.getContext('2d');
         if (!finalContext) throw new Error('A kép nem készíthető el.');
 
         finalContext.fillStyle = '#ffffff';
         finalContext.fillRect(0, 0, canvas.width, canvas.height);
-        finalContext.drawImage(image, 0, imageTop, pixelWidth, imageHeight);
+        finalContext.drawImage(image, imageLeft, imageTop, imageWidth, imageHeight);
         finalContext.fillStyle = '#17241f';
         finalContext.textAlign = 'center';
         finalContext.textBaseline = 'top';
         finalContext.font = `700 ${titleFontSize}px "Trebuchet MS", sans-serif`;
         titleLines.forEach((text, index) => {
-            finalContext.fillText(text, pixelWidth / 2, padding + index * lineHeight);
+            finalContext.fillText(text, canvasWidth / 2, contentTop + index * lineHeight);
         });
         finalContext.font = `${codeFontSize}px Consolas, "Courier New", monospace`;
         codeLines.forEach((text, index) => {
-            finalContext.fillText(text, pixelWidth / 2, codeTop + index * lineHeight);
+            finalContext.fillText(text, canvasWidth / 2, codeTop + index * lineHeight);
         });
 
         return await new Promise((resolve, reject) => {
@@ -334,7 +345,7 @@ function App() {
             const svg = previewRef.current?.querySelector('svg');
             if (!svg) throw new Error('Nem található letölthető kód.');
 
-            const blob = await createPngBlob(svg, name.trim(), value);
+            const blob = await createPngBlob(svg, name.trim(), value, generatorMode);
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
